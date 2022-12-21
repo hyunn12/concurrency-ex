@@ -22,6 +22,9 @@ class StockServiceTest {
     private StockService stockService;
 
     @Autowired
+    private PessimisticLockStockService pessimisticLockStockService;
+
+    @Autowired
     private StockRepository stockRepository;
 
     @BeforeEach
@@ -111,6 +114,35 @@ class StockServiceTest {
         //      인스턴스 단위로 thread-safe 보장이 되는데 서버가 여러 대인 경우엔 인스턴스가 여러 개인 것과 같아짐
         //      따라서 여러 대의 서버에서 동시에 접근한다면?? 서로 다른 프로세스를 가지기때문에 보장이 되지 않음 => Race Condition 발생
         //      실 운영 서버는 대부분 두 대 이상의 서버를 사용하기 때문에 synchronized 로 동시성 이슈를 해결할 수 없음!
+    }
+
+    @Test
+    @DisplayName("동시에 100개의 요청이 들어올 경우 - Pessimistic Lock")
+    void pessimisticLockDecrease() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(32);
+        CountDownLatch latch = new CountDownLatch(threadCount);
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try {
+                    pessimisticLockStockService.decrease(1L, 1L);
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+        latch.await();
+        Stock stock = stockRepository.findById(1L).orElseThrow();
+        assertEquals(0L, stock.getQuantity());
+
+        // [ Pessimistic Lock ]
+        //   select stock0_.id as id1_0_, stock0_.product_id as product_2_0_, stock0_.quantity as quantity3_0_ from stock stock0_ where stock0_.id=? for update
+        //   마지막의 for update 부분이 락을 걸고 데이터를 가지고오는 부분
+        // 장점
+        //      충돌이 빈번하게 일어난다면 optimistic lock 보다 성능이 좋을 수 있음
+        //      lock을 통해 update를 제어하기에 데이터 정합성이 어느정보 보장됨
+        // 단점
+        //      별도의 lock을 걸기때문에 성능저하가 발생할 수 있음
     }
 
 }

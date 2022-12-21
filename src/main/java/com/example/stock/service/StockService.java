@@ -4,8 +4,8 @@ import com.example.stock.domain.Stock;
 import com.example.stock.repository.StockRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import javax.transaction.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +29,14 @@ public class StockService {
     public synchronized void syncDecrease(Long id, Long quantity) {
         // synchronized -> 한 번에 하나의 스레드만 접근할 수 있도록 함
 
+        Stock stock = stockRepository.findById(id).orElseThrow();
+        stock.decrease(quantity);
+        stockRepository.saveAndFlush(stock);
+    }
+
+    // 부모의 transaction과 별개로 실행되어야해서 propagation 설정
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void namedLockDecrease(Long id, Long quantity) {
         Stock stock = stockRepository.findById(id).orElseThrow();
         stock.decrease(quantity);
         stockRepository.saveAndFlush(stock);
