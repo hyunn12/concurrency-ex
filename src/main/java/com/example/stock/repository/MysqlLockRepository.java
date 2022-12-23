@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface LockRepository extends JpaRepository<Stock, Long> {
+public interface MysqlLockRepository extends JpaRepository<Stock, Long> {
 
     // 실무에선 별도의 jdbc 이용 권장
 
